@@ -29,8 +29,7 @@ setup(
         "tqdm==4.65.0",
         "dash-bootstrap-components==1.4.1",
         "python-dotenv>=1.0.1",
-        "googlemaps>=3.1.0",
-
+        "googlemaps>=3.1.0"
     ],
     entry_points={
         "console_scripts": [

@@ -38,8 +38,8 @@ setup(
         ],
     },
     python_requires=">=3.8",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Daniel Roberts",
+    author_email="danielrob001@gmail.com",
     description="Powerline sleeve detection system",
     keywords="computer vision, powerlines, detection",
     classifiers=[

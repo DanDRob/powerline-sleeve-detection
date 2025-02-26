@@ -1,0 +1,51 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="powerline_sleeve_detection",
+    version="0.1.0",
+    packages=find_packages(),
+    install_requires=[
+        "numpy==1.24.3",
+        "pandas>=1.1.0",
+        "pillow>=8.0.0",
+        "torch>=1.7.0",
+        "torchvision==0.15.2",
+        "opencv-python>=4.5.0",
+        "folium>=0.12.0",
+        "dash>=2.0.0",
+        "plotly>=5.0.0",
+        "geopandas>=0.9.0",
+        "shapely>=1.7.0",
+        "requests>=2.25.0",
+        "polyline>=1.4.0",
+        "geopy>=2.2.0",
+        "pyproj>=3.0.0",
+        "pyyaml>=5.4.0",
+        "aiohttp>=3.7.0",
+        "asyncio>=3.4.3",
+        "contextily==1.3.0",
+        "ultralytics>=0.0.0",
+        "effdet==0.4.1",
+        "tqdm==4.65.0",
+        "dash-bootstrap-components==1.4.1",
+        "python-dotenv>=1.0.1",
+        "googlemaps>=3.1.0",
+
+    ],
+    entry_points={
+        "console_scripts": [
+            "powerline-detector=powerline_sleeve_detection.cli:main",
+        ],
+    },
+    python_requires=">=3.8",
+    author="Your Name",
+    author_email="your.email@example.com",
+    description="Powerline sleeve detection system",
+    keywords="computer vision, powerlines, detection",
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.11",
+    ],
+)

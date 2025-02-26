@@ -1,0 +1,12 @@
+route_id,start_location,end_location,save_images,draw_detections,generate_map
+001,"Toronto City Hall, Toronto, ON","Ontario Science Centre, Toronto, ON",true,true,true
+002,"Union Station, Toronto, ON","CN Tower, Toronto, ON",true,true,true
+003,"University of Toronto, Toronto, ON","Royal Ontario Museum, Toronto, ON",true,true,true
+004,"Pearson Airport, Toronto, ON","Vaughan Mills, Vaughan, ON",true,true,true
+005,"High Park, Toronto, ON","Kensington Market, Toronto, ON",true,true,true
+006,"Yonge-Dundas Square, Toronto, ON","St. Lawrence Market, Toronto, ON",true,true,true
+007,"Toronto Zoo, Toronto, ON","Canada's Wonderland, Vaughan, ON",true,true,true
+008,"Eaton Centre, Toronto, ON","Yorkdale Shopping Centre, Toronto, ON",true,true,true
+009,"Scarborough Town Centre, Toronto, ON","Pickering Town Centre, Pickering, ON",true,true,true
+010,"Oshawa Centre, Oshawa, ON","Whitby, ON",true,true,true
+011,"1233 Lawrence Ave W, Toronto, Ontario","1242 Lawrence Ave W, North York, ON M6L 1A3",true,true,true

@@ -1,0 +1,51 @@
+api:
+  key: ""
+  min_request_interval: 0.1
+  max_retries: 3
+  retry_delay: 1.0
+  image_width: 1024
+  image_height: 1024
+
+sampling:
+  base_interval: 20.0 # meters
+  max_extra_points: 5
+  importance_threshold: 0.6
+  weights:
+    historical: 0.4
+    environmental: 0.3
+    infrastructure: 0.3
+
+detection:
+  model_paths:
+    yolov8s: "models/yolov8s.pt" # Default YOLOv8 small model
+  confidence_threshold: 0.5
+  iou_threshold: 0.45
+  ensemble_weights:
+    yolov8s: 1.0
+  device: "auto" # auto, cuda, or cpu
+  batch_size: 8
+
+camera:
+  altitude: 2.5 # meters
+  pitch_values: [0, 30, 60]
+  fov_default: [55]
+  fov_special: [40]
+  relative_angles_right: [90, 45, 135]
+  relative_angles_left: [270, 310, 230]
+
+powerline:
+  offset_distance: 10.0 # meters from road centerline
+  side: "both" # right, left, or both
+
+system:
+  output_dir: "output"
+  num_workers: 4
+  debug: false
+  cache_dir: ".cache"
+  config_check_interval: 300 # seconds
+
+cache:
+  enabled: true
+  location: ".cache"
+  max_size_mb: 5000 # 5GB max cache size
+  expire_after: 604800 # 1 week in seconds

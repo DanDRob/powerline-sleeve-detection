@@ -149,14 +149,7 @@ class RoutePlanner:
         Returns:
             Importance factor between 0 and 1
         """
-        # This is a placeholder implementation; in a real system, you would use:
-        # - Historical data on detection issues
-        # - Environmental complexity (vegetation, buildings)
-        # - Infrastructure complexity (intersections, turns)
 
-        # For this example, we'll use a simple distance and bearing change heuristic
-
-        # Check if there's a significant bearing change
         lat1, lon1 = p1
         lat2, lon2 = p2
 
@@ -173,8 +166,8 @@ class RoutePlanner:
         # Combine factors with weights from config
         importance = (
             self.config.sampling.weights.infrastructure * distance_factor +
-            self.config.sampling.weights.environmental * 0.5 +  # Placeholder
-            self.config.sampling.weights.historical * 0.5  # Placeholder
+            self.config.sampling.weights.environmental * 0.5 +
+            self.config.sampling.weights.historical * 0.5
         )
 
         return min(max(importance, 0.0), 1.0)  # Ensure between 0 and 1

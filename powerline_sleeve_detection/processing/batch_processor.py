@@ -16,6 +16,7 @@ from ..acquisition.streetview_client import StreetViewClient
 from ..acquisition.image_processor import ImageProcessor
 from ..detection.detector import SleeveDetector
 from ..detection.model_manager import ModelManager
+from ..detection.ensemble_integration import EnsembleIntegration
 from ..detection.tracker import SleevePowerlineTracker
 from ..visualization.map_generator import MapGenerator
 from ..acquisition.cache_manager import CacheManager
@@ -35,6 +36,20 @@ class BatchProcessor:
         self.route_planner = RoutePlanner(config)
         self.model_manager = ModelManager(config)
         self.detector = SleeveDetector(config, self.model_manager)
+
+        # Initialize ensemble integration if enabled
+        if config.get('ensemble.enabled', False):
+            try:
+                self.ensemble_integration = EnsembleIntegration(
+                    config, self.model_manager)
+                self.ensemble_integration.integrate_with_detector(
+                    self.detector)
+                self.logger.info(
+                    "Ensemble detection enabled for batch processing")
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to initialize ensemble integration: {e}")
+
         self.tracker = SleevePowerlineTracker(config)
         self.map_generator = MapGenerator(config)
         self.cache_manager = CacheManager(config)
@@ -615,3 +630,70 @@ class BatchProcessor:
         except Exception as e:
             self.logger.error(f"Error exporting combined results: {e}")
             return None
+
+    async def process_batch_from_csv(self, csv_file: str, parallel: bool = True,
+                                     max_concurrent: int = 2, subset: int = None) -> Dict[str, Any]:
+        """
+        Process a batch of routes from a CSV file.
+
+        Args:
+            csv_file: Path to CSV file with route information
+            parallel: Whether to process routes in parallel
+            max_concurrent: Maximum number of concurrent route processing tasks
+            subset: Number of routes to sample for validation (None for all)
+
+        Returns:
+            Dictionary with batch processing results
+        """
+        start_time = time.time()
+        self.logger.info(f"Starting batch processing from {csv_file}")
+
+        # Load routes from CSV
+        routes = self.load_routes_from_csv(csv_file)
+        if not routes:
+            self.logger.error(f"No valid routes found in {csv_file}")
+            return {
+                "success": False,
+                "error": "No valid routes found in CSV file",
+                "metadata": {
+                    "total_routes": 0,
+                    "file": csv_file
+                }
+            }
+
+        # Create validation subset if requested
+        if subset and subset < len(routes):
+            self.logger.info(
+                f"Creating validation subset with {subset} routes")
+            subset_csv = os.path.join(self.output_dir, "validation_subset.csv")
+            routes = self.create_route_subset_for_validation(
+                routes, subset, subset_csv)
+            self.logger.info(f"Validation subset saved to {subset_csv}")
+
+        total_routes = len(routes)
+        self.logger.info(
+            f"Processing {total_routes} routes {'in parallel' if parallel else 'sequentially'}")
+
+        # Process routes
+        if parallel:
+            batch_results = await self.process_routes_parallel(routes, max_concurrent)
+            results = batch_results.get("route_results", [])
+        else:
+            batch_results = await self.process_routes_sequential(routes)
+            results = batch_results.get("route_results", [])
+
+        # Generate and add summary
+        duration = time.time() - start_time
+        summary = self._generate_batch_summary(results, duration)
+
+        # Export combined results
+        combined_results_file = self.export_combined_results()
+
+        # Prepare return value
+        return {
+            "success": True,
+            "results": results,
+            "metadata": summary,
+            "output_dir": self.output_dir,
+            "combined_results": combined_results_file
+        }

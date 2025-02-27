@@ -11,6 +11,7 @@ import gc
 from ..system.config import Config
 from ..system.logging import get_logger
 from .model_manager import ModelManager
+from .ensemble_integration import EnsembleIntegration
 
 
 class SleeveDetector:
@@ -28,6 +29,19 @@ class SleeveDetector:
         self.current_batch_size = config.detection.batch_size
         self.memory_errors = 0
         self.last_memory_check = time.time()
+
+        # Initialize ensemble integration if enabled
+        self.ensemble_integration = None
+        if config.get('ensemble.enabled', False):
+            try:
+                self.ensemble_integration = EnsembleIntegration(
+                    config, self.model_manager)
+                self.ensemble_integration.integrate_with_detector(self)
+                self.logger.info(
+                    "Ensemble integration initialized and integrated with detector")
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to initialize ensemble integration: {e}")
 
     def detect(self, image: Image.Image, model_name: Optional[str] = None) -> Dict[str, Any]:
         """

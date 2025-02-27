@@ -29,8 +29,7 @@ setup(
         "tqdm==4.65.0",
         "dash-bootstrap-components==1.4.1",
         "python-dotenv>=1.0.1",
-        "googlemaps>=3.1.0",
-
+        "googlemaps>=3.1.0"
     ],
     entry_points={
         "console_scripts": [
@@ -38,8 +37,8 @@ setup(
         ],
     },
     python_requires=">=3.8",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Daniel Roberts",
+    author_email="danielrob001@gmail.com",
     description="Powerline sleeve detection system",
     keywords="computer vision, powerlines, detection",
     classifiers=[

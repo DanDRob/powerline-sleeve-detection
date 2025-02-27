@@ -18,6 +18,7 @@ sampling:
 detection:
   model_paths:
     yolov8s: "models/yolov8s.pt" # Default YOLOv8 small model
+    custom_model: "models/transmission_model.pt" # Custom trained model for powerline sleeves
   confidence_threshold: 0.5
   iou_threshold: 0.45
   ensemble_weights:
@@ -49,3 +50,93 @@ cache:
   location: ".cache"
   max_size_mb: 5000 # 5GB max cache size
   expire_after: 604800 # 1 week in seconds
+
+training:
+  enabled: false # Set to true only when training
+
+  # Dataset configuration
+  dataset_dir: "data/sleeves" # Base directory for datasets
+  dataset_yaml: null # Path to dataset.yaml file (set by prepare-dataset command)
+  class_names: ["sleeve"] # Names of classes to detect
+
+  # Model configuration
+  base_model: "yolov8s.pt" # Base model to fine-tune
+  custom_model_path: "models/transmission_model.pt" # Path to save the final model
+  image_size: 640 # Input image size
+
+  # Training parameters
+  batch_size: 16 # Batch size for training
+  epochs: 100 # Maximum number of epochs
+  patience: 20 # Early stopping patience
+  learning_rate: 0.01 # Initial learning rate
+  weight_decay: 0.0005 # Weight decay regularization
+
+  # Output configuration
+  output_dir: "runs/train" # Directory to save training results
+  experiment_name: "sleeve_detection" # Name of training experiment
+  validation_interval: 5 # Validate every N epochs
+  save_period: 10 # Save checkpoint every N epochs
+
+  # Augmentation configuration
+  augmentation:
+    enabled: true # Enable data augmentation
+    severity: "medium" # Augmentation severity (light, medium, heavy)
+    multiplier: 3 # Number of augmentations per original image
+    mosaic: 0.5 # Mosaic augmentation probability
+    mixup: 0.1 # Mixup augmentation probability
+    degrees: 15.0 # Rotation range in degrees
+    translate: 0.1 # Translation range as fraction of image size
+    scale: 0.5 # Scale range
+    shear: 0.0 # Shear range in degrees
+    perspective: 0.0 # Perspective distortion
+    flip_horizontal: 0.5 # Horizontal flip probability
+    flip_vertical: 0.0 # Vertical flip probability
+    brightness: 0.1 # Brightness adjustment range
+    contrast: 0.1 # Contrast adjustment range
+    saturation: 0.1 # Saturation adjustment range
+    hue: 0.1 # Hue adjustment range
+    blur: 0.1 # Blur probability
+
+# Hyperparameter tuning configuration
+hyperparameter_tuning:
+  enabled: false # Enable hyperparameter tuning
+  study_name: "sleeve_detection_tuning" # Name of the tuning study
+  n_trials: 20 # Number of trials to run
+  timeout: null # Timeout in seconds (null for no timeout)
+  tuning_output_dir: "runs/tuning" # Directory to save tuning results
+
+  # Parameter search spaces
+  search_space:
+    learning_rate: [1e-5, 1e-2] # Min and max learning rate (log scale)
+    batch_size: [4, 8, 16, 32] # Batch size options
+    image_size: [416, 512, 640, 768] # Image size options
+    patience: [10, 30] # Min and max patience
+    epochs: [30, 100] # Min and max epochs
+    mosaic: [0.0, 1.0] # Min and max mosaic probability
+    mixup: [0.0, 1.0] # Min and max mixup probability
+
+# Auto-labeling configuration
+auto_labeling:
+  enabled: false # Enable auto-labeling
+  model_path: null # Path to trained model for auto-labeling
+  confidence_threshold: 0.5 # Confidence threshold for auto labeling
+  review_threshold: 0.3 # Threshold for flagging for review
+  max_labels_per_image: 20 # Maximum number of labels per image
+  visualization:
+    enabled: true # Generate visualization of auto-labeled images
+    draw_scores: true # Draw confidence scores on visualizations
+    color_by_class: true # Use different colors for different classes
+
+# Ensemble detection configuration
+ensemble:
+  enabled: false # Enable ensemble detection
+  method: "weighted_boxes_fusion" # Ensemble method (weighted_boxes_fusion, non_maximum_suppression)
+  iou_threshold: 0.5 # IoU threshold for box fusion
+  score_threshold: 0.1 # Score threshold for detection
+  models: [] # List of models to use in ensemble (configured by create-ensemble command)
+  # Example model configuration:
+  # models:
+  #   - path: "models/model1.pt"
+  #     weight: 1.0
+  #   - path: "models/model2.pt"
+  #     weight: 0.5

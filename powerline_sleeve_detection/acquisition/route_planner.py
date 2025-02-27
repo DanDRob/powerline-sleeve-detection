@@ -150,6 +150,7 @@ class RoutePlanner:
             Importance factor between 0 and 1
         """
 
+        # Check if there's a significant bearing change
         lat1, lon1 = p1
         lat2, lon2 = p2
 

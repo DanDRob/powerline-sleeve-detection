@@ -326,6 +326,62 @@ class Config:
 
         return False
 
+    def get(self, path: str, default: Any = None) -> Any:
+        """
+        Access nested configuration values using dot notation with a default value.
+        
+        Args:
+            path: Path to configuration value using dot notation (e.g., 'detection.confidence_threshold')
+            default: Default value to return if the path doesn't exist
+            
+        Returns:
+            The configuration value at the specified path, or the default if not found
+        """
+        parts = path.split('.')
+        current = self
+        
+        try:
+            for part in parts:
+                if hasattr(current, part):
+                    current = getattr(current, part)
+                elif isinstance(current, dict) and part in current:
+                    current = current[part]
+                else:
+                    return default
+            return current
+        except Exception:
+            return default
+            
+    def set(self, path: str, value: Any) -> None:
+        """
+        Set a configuration value at the specified path using dot notation.
+        Creates the path if it doesn't exist and it's a simple attribute path.
+        
+        Args:
+            path: Path to configuration value using dot notation (e.g., 'detection.confidence_threshold')
+            value: Value to set
+        """
+        parts = path.split('.')
+        current = self
+        
+        # Navigate to the parent object
+        for i in range(len(parts) - 1):
+            part = parts[i]
+            if hasattr(current, part):
+                current = getattr(current, part)
+            else:
+                self._get_logger().warning(
+                    f"Cannot set config value at {path}: {part} not found")
+                return
+        
+        # Set the attribute on the parent object
+        last_part = parts[-1]
+        if hasattr(current, last_part):
+            setattr(current, last_part, value)
+        else:
+            self._get_logger().warning(
+                f"Cannot set config value at {path}: {last_part} not found")
+
 
 # Create default configuration
 default_config = Config()

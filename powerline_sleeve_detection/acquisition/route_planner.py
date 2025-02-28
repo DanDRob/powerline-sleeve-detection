@@ -364,3 +364,104 @@ class RoutePlanner:
         self.logger.info(
             f"Route planning completed successfully with {len(enhanced_points)} points")
         return result
+
+    def plan_routes_from_csv(self, csv_file: str) -> Dict[str, Any]:
+        """
+        Plan multiple routes from a CSV file.
+        
+        Args:
+            csv_file: Path to CSV file containing route information
+            
+        Returns:
+            Dictionary with planning results
+        """
+        import csv
+        import os
+        import json
+        
+        self.logger.info(f"Planning routes from CSV file: {csv_file}")
+        
+        if not os.path.exists(csv_file):
+            self.logger.error(f"CSV file not found: {csv_file}")
+            return {"success": False, "error": f"CSV file not found: {csv_file}"}
+            
+        results = []
+        routes_processed = 0
+        routes_succeeded = 0
+        
+        # Create output directory
+        output_dir = os.path.join(self.config.system.output_dir, "route_plans")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        try:
+            with open(csv_file, 'r') as f:
+                csv_reader = csv.DictReader(f)
+                
+                for row in csv_reader:
+                    route_id = row.get('route_id')
+                    start_location = row.get('start_location')
+                    end_location = row.get('end_location')
+                    
+                    if not all([route_id, start_location, end_location]):
+                        self.logger.warning(f"Skipping row with missing data: {row}")
+                        continue
+                        
+                    self.logger.info(f"Planning route {route_id}: {start_location} to {end_location}")
+                    routes_processed += 1
+                    
+                    try:
+                        # Plan the route
+                        route_result = self.plan_route(start_location, end_location)
+                        
+                        if route_result.get('success', False):
+                            routes_succeeded += 1
+                            
+                            # Save route plan to JSON file
+                            output_file = os.path.join(output_dir, f"route_{route_id}.json")
+                            with open(output_file, 'w') as out_f:
+                                json.dump(route_result, out_f, indent=2)
+                                
+                            self.logger.info(f"Route {route_id} plan saved to {output_file}")
+                            
+                            # Add to results with file info
+                            route_result['output_file'] = output_file
+                            route_result['route_id'] = route_id
+                            results.append(route_result)
+                        else:
+                            self.logger.error(f"Failed to plan route {route_id}: {route_result.get('error', 'Unknown error')}")
+                            results.append({
+                                "success": False,
+                                "route_id": route_id,
+                                "error": route_result.get('error', 'Unknown error')
+                            })
+                    except Exception as e:
+                        self.logger.error(f"Error planning route {route_id}: {e}")
+                        results.append({
+                            "success": False,
+                            "route_id": route_id,
+                            "error": str(e)
+                        })
+            
+            # Create summary file
+            summary_file = os.path.join(output_dir, "routes_summary.json")
+            summary = {
+                "total_routes": routes_processed,
+                "successful_routes": routes_succeeded,
+                "failed_routes": routes_processed - routes_succeeded
+            }
+            
+            with open(summary_file, 'w') as f:
+                json.dump(summary, f, indent=2)
+                
+            return {
+                "success": True,
+                "routes_processed": routes_processed,
+                "routes_succeeded": routes_succeeded,
+                "output_dir": output_dir,
+                "summary_file": summary_file,
+                "results": results
+            }
+                
+        except Exception as e:
+            self.logger.error(f"Error processing routes from CSV: {e}")
+            return {"success": False, "error": str(e)}

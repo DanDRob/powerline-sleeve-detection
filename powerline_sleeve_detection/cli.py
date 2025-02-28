@@ -731,7 +731,11 @@ def process_command(args):
         logger = logging.getLogger("process-cli")
 
         # Load configuration
-        config = Config.get_instance()
+        config = load_config(args.config if hasattr(args, "config") else "config.yaml")
+        
+        # Import csv module
+        import csv
+        import asyncio
 
         # Initialize batch processor
         processor = BatchProcessor(config)
@@ -749,8 +753,32 @@ def process_command(args):
             if args.output:
                 config.set("system.output_dir", args.output)
                 logger.info(f"Using custom output directory: {args.output}")
-
-            result = processor.process_route(args.route_id)
+                
+            # Find route details from CSV
+            csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_routes.csv")
+            start_location = None
+            end_location = None
+            
+            if not os.path.exists(csv_path):
+                logger.error(f"Routes file not found: {csv_path}")
+                sys.exit(1)
+                
+            with open(csv_path, 'r') as f:
+                csv_reader = csv.DictReader(f)
+                for row in csv_reader:
+                    if row['route_id'] == args.route_id:
+                        start_location = row['start_location']
+                        end_location = row['end_location']
+                        break
+            
+            if not start_location or not end_location:
+                logger.error(f"Route ID {args.route_id} not found in routes file")
+                sys.exit(1)
+                
+            logger.info(f"Found route: {start_location} to {end_location}")
+            
+            # Process the route using asyncio
+            result = asyncio.run(processor.process_route(args.route_id, start_location, end_location))
 
             if result and result.get("success", False):
                 logger.info(f"Successfully processed route {args.route_id}")
@@ -776,7 +804,7 @@ def process_command(args):
                 config.set("system.output_dir", args.output)
                 logger.info(f"Using custom output directory: {args.output}")
 
-            result = processor.process_videos_from_csv(args.video_list)
+            result = asyncio.run(processor.process_videos_from_csv(args.video_list))
 
             if result and result.get("success", False):
                 logger.info("Successfully processed videos from list")
@@ -806,12 +834,12 @@ def process_command(args):
             validation_subset = args.validation / \
                 100.0 if args.validation is not None else None
 
-            result = processor.process_batch_from_csv(
+            result = asyncio.run(processor.process_batch_from_csv(
                 args.batch,
                 parallel=args.parallel,
                 max_concurrent_tasks=args.max_tasks,
                 validation_subset=validation_subset
-            )
+            ))
 
             if result and result.get("success", False):
                 logger.info("Successfully processed batch")
@@ -846,10 +874,11 @@ def plan_command(args):
         logger = logging.getLogger("plan-cli")
 
         # Load configuration
-        config = Config.get_instance()
+        config = load_config(args.config if hasattr(args, "config") else "config.yaml")
 
         # Import route planner module
         from powerline_sleeve_detection.acquisition.route_planner import RoutePlanner
+        import csv
 
         # Initialize route planner
         planner = RoutePlanner(config)
@@ -862,8 +891,30 @@ def plan_command(args):
             if args.output:
                 config.set("system.output_dir", args.output)
                 logger.info(f"Using custom output directory: {args.output}")
-
-            result = planner.plan_route(args.route_id)
+            
+            # Find route details from CSV
+            csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_routes.csv")
+            start_location = None
+            end_location = None
+            
+            if not os.path.exists(csv_path):
+                logger.error(f"Routes file not found: {csv_path}")
+                sys.exit(1)
+                
+            with open(csv_path, 'r') as f:
+                csv_reader = csv.DictReader(f)
+                for row in csv_reader:
+                    if row['route_id'] == args.route_id:
+                        start_location = row['start_location']
+                        end_location = row['end_location']
+                        break
+            
+            if not start_location or not end_location:
+                logger.error(f"Route ID {args.route_id} not found in routes file")
+                sys.exit(1)
+                
+            logger.info(f"Found route: {start_location} to {end_location}")
+            result = planner.plan_route(start_location, end_location)
 
             if result and result.get("success", False):
                 logger.info(f"Successfully planned route {args.route_id}")

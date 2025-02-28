@@ -1,3 +1,5 @@
+# Add future import for postponed evaluation of annotations
+from __future__ import annotations
 import os
 from typing import Dict, List, Optional, Any, Tuple, Union
 import numpy as np
@@ -8,7 +10,6 @@ from pathlib import Path
 
 from ..system.config import Config
 from ..system.logging import get_logger
-from .detector import SleeveDetector
 from .model_manager import ModelManager
 from ..training.ensemble import EnsembleDetector
 
@@ -129,13 +130,15 @@ class EnsembleIntegration:
 
         return detections
 
-    def integrate_with_detector(self, detector: SleeveDetector) -> None:
+    def integrate_with_detector(self, detector: 'SleeveDetector') -> None:
         """
         Integrate ensemble detection with an existing detector instance.
 
         Args:
             detector: SleeveDetector instance to integrate with
         """
+        # No need to import SleeveDetector - use duck typing instead
+
         if not self.ensemble_detector:
             self.logger.warning(
                 "No ensemble detector available for integration")

@@ -11,7 +11,7 @@ import optuna
 from optuna.trial import Trial
 from optuna.samplers import TPESampler
 
-from powerline_sleeve_detection.utils.config import Config
+from powerline_sleeve_detection.system.config import Config
 from powerline_sleeve_detection.training.trainer import SleeveModelTrainer
 
 logger = logging.getLogger(__name__)

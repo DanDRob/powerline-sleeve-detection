@@ -7,5 +7,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 if __name__ == "__main__":
+    # If no arguments are provided, show a helpful message
+    if len(sys.argv) == 1:
+        print("Powerline Sleeve Detection Utility")
+        print("\nUsage: python run.py COMMAND [OPTIONS]")
+        print("\nAvailable commands:")
+        print("  process   Process routes and detect sleeves")
+        print("  plan      Plan routes for data acquisition")
+        print("  train     Train and evaluate sleeve detection models")
+        print("\nFor more information, use: python run.py COMMAND --help")
+        sys.exit(1)
+
+    # Otherwise, run the CLI as normal
     main()
 {}

@@ -7,7 +7,7 @@ import yaml
 import torch
 from ultralytics import YOLO
 
-from powerline_sleeve_detection.utils.config import Config
+from powerline_sleeve_detection.system.config import Config
 
 logger = logging.getLogger(__name__)
 

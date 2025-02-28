@@ -9,7 +9,7 @@ import yaml
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from powerline_sleeve_detection.utils.config import Config
+from powerline_sleeve_detection.system.config import Config
 
 logger = logging.getLogger(__name__)
 

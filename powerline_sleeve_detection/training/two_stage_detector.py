@@ -557,8 +557,8 @@ class TwoStageDetector:
                 },
                 # Configuration 4: Larger image size
                 {
-                    "img_size": 800,
-                    "batch_size": 8,  # Smaller batch size for larger images
+                    "img_size": 640,
+                    "batch_size": 32,  # Smaller batch size for larger images
                     "epochs": epochs,
                     "lr0": 0.01,
                     "optimizer": "SGD",

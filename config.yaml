@@ -40,7 +40,7 @@ powerline:
 
 system:
   output_dir: "output"
-  num_workers: 4
+  num_workers: 8
   debug: false
   cache_dir: ".cache"
   config_check_interval: 300 # seconds

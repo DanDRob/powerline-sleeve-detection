@@ -11,4 +11,4 @@ route_id,start_location,end_location,save_images,draw_detections,generate_map
 010,"Oshawa Centre, Oshawa, ON","Whitby, ON",true,true,true
 011,"1233 Lawrence Ave W, Toronto, Ontario","1242 Lawrence Ave W, North York, ON M6L 1A3",true,true,true
 012,"6615 4A Township Rd, Puslinch, ON N1H 6J3","6649 Forestell Rd, Puslinch, ON N1H 6J3",true,true,true
- 
+013,"6649 Forestell Rd, Puslinch, ON N1H 6J3","4687 10 Township Rd",true,true,true

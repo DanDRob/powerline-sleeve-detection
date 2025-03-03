@@ -15,6 +15,7 @@ if __name__ == "__main__":
         print("  process   Process routes and detect sleeves")
         print("  plan      Plan routes for data acquisition")
         print("  train     Train and evaluate sleeve detection models")
+        print("  two-stage Two-stage detection for powerlines and sleeves")
         print("\nFor more information, use: python run.py COMMAND --help")
         sys.exit(1)
 

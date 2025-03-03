@@ -19,6 +19,7 @@ from .training.hyperparameter_tuning import HyperparameterTuner
 from .training.monitor import TrainingMonitor
 from .training.ensemble import EnsembleDetector
 from .detection.ensemble_integration import EnsembleIntegration
+from .training.two_stage_detector import TwoStageDetector
 from dotenv import load_dotenv
 
 # Load environment variables at the very beginning
@@ -482,483 +483,586 @@ def initialize_config(config_path="config.yaml"):
 
 
 def main():
-    """Main entry point for the command line interface."""
     parser = argparse.ArgumentParser(
-        description="Powerline sleeve detection utility"
-    )
-    subparsers = parser.add_subparsers(dest="command", help="Commands")
-    subparsers.required = True
+        description="Powerline Sleeve Detection Tool")
+
+    parser.add_argument('--config', default='config.yaml',
+                        help='Path to config file')
+
+    subparsers = parser.add_subparsers(
+        dest='command', help='Available commands')
 
     # Process command
     process_parser = subparsers.add_parser(
-        "process", help="Process routes and detect sleeves"
-    )
+        'process', help='Process routes and detect sleeves')
     process_parser.add_argument(
-        "--route-id", help="Process a specific route ID", required=False
-    )
+        '--csv', help='CSV file with routes to process')
     process_parser.add_argument(
-        "--video-list",
-        help="Process videos from a list in a CSV file",
-        required=False,
-    )
+        '--route-id', help='Specific route ID to process')
     process_parser.add_argument(
-        "--model", help="Path to a custom YOLO model", required=False
-    )
+        '--start', help='Start location (if processing single route)')
     process_parser.add_argument(
-        "--output", help="Output directory", required=False
-    )
-    process_parser.add_argument(
-        "--batch", help="Process multiple routes from a CSV file", required=False
-    )
-    process_parser.add_argument(
-        "--parallel",
-        help="Process batch in parallel",
-        action="store_true",
-        required=False
-    )
-    process_parser.add_argument(
-        "--max-tasks",
-        help="Maximum number of concurrent tasks for parallel processing",
-        type=int,
-        default=4,
-        required=False
-    )
-    process_parser.add_argument(
-        "--validation",
-        help="Percentage of routes to use for validation (0-100)",
-        type=float,
-        required=False
-    )
+        '--end', help='End location (if processing single route)')
+    process_parser.add_argument('--parallel', action='store_true',
+                                help='Process routes in parallel')
+    process_parser.add_argument('--max-concurrent', type=int, default=2,
+                                help='Maximum number of concurrent tasks when running in parallel')
+    process_parser.add_argument('--subset', type=int,
+                                help='Process only a subset of routes')
+    process_parser.add_argument('--visualize', action='store_true',
+                                help='Generate visualizations during processing')
+    process_parser.add_argument('--export-format', choices=['kml', 'geojson', 'csv', 'all'],
+                                default='all', help='Export format for results')
+    process_parser.add_argument('--no-cleanup', action='store_true',
+                                help='Keep temporary files after processing')
 
     # Plan command
     plan_parser = subparsers.add_parser(
-        "plan", help="Plan routes for data acquisition"
-    )
+        'plan', help='Plan routes for data acquisition')
+    plan_parser.add_argument('--coverage', choices=['high', 'medium', 'low'],
+                             default='medium', help='Desired coverage level')
+    plan_parser.add_argument('--region', help='Region to plan routes for')
     plan_parser.add_argument(
-        "--route-id", help="Plan flights for a specific route ID", required=False
-    )
-    plan_parser.add_argument(
-        "--output", help="Output directory", required=False
-    )
-    plan_parser.add_argument(
-        "--batch", help="Plan multiple routes from a CSV file", required=False
-    )
+        '--output', help='Output file for the planned routes')
+    plan_parser.add_argument('--visualize', action='store_true',
+                             help='Visualize the planned routes')
 
-    # Train command - new addition
+    # Train command
     train_parser = subparsers.add_parser(
-        "train", help="Train and evaluate sleeve detection models"
-    )
+        'train', help='Train and evaluate sleeve detection models')
+    train_parser.add_argument('--mode', choices=['prepare', 'augment', 'train', 'evaluate', 'auto-label',
+                                                 'tune', 'monitor', 'create-ensemble'],
+                              help='Training mode')
+    train_parser.add_argument('--data', help='Path to training data')
     train_parser.add_argument(
-        "--mode",
-        choices=["prepare", "augment", "train", "tune", "auto-label",
-                 "create-ensemble", "full-workflow", "evaluate"],
-        help="Training or evaluation mode",
-        required=True
-    )
+        '--model', help='Base model to use for training or evaluation')
+    train_parser.add_argument('--dataset', help='Path to dataset YAML file')
+    train_parser.add_argument('--epochs', type=int,
+                              help='Number of training epochs')
+    train_parser.add_argument('--batch-size', type=int,
+                              help='Training batch size')
+    train_parser.add_argument('--img-size', type=int,
+                              help='Training image size')
     train_parser.add_argument(
-        "--config",
-        help="Path to configuration file",
-        default="config.yaml"
-    )
+        '--learning-rate', type=float, help='Learning rate')
     train_parser.add_argument(
-        "--data",
-        help="Path to raw data directory"
-    )
+        '--weight-decay', type=float, help='Weight decay')
     train_parser.add_argument(
-        "--dataset-yaml",
-        help="Path to dataset YAML file"
-    )
+        '--device', help='Training device (cpu, cuda, 0, 1, etc.)')
+    train_parser.add_argument('--workers', type=int,
+                              default=8, help='Number of worker threads')
     train_parser.add_argument(
-        "--base-model",
-        help="Base YOLOv8 model to fine-tune"
-    )
+        '--cache', action='store_true', help='Cache images for faster training')
     train_parser.add_argument(
-        "--model-path",
-        help="Path to model for evaluation or auto-labeling"
-    )
+        '--single-class', action='store_true', help='Treat all objects as a single class')
     train_parser.add_argument(
-        "--model-paths",
-        nargs="+",
-        help="Paths to models for ensemble or comparison"
-    )
+        '--optimizer', choices=['SGD', 'Adam', 'AdamW'], help='Optimizer to use')
+    train_parser.add_argument('--augment', choices=['light', 'medium', 'heavy'],
+                              help='Augmentation severity')
+    train_parser.add_argument('--confidence', type=float, default=0.25,
+                              help='Confidence threshold for detections')
+    train_parser.add_argument('--iou-threshold', type=float, default=0.45,
+                              help='IoU threshold for NMS')
+    train_parser.add_argument('--save-period', type=int, default=10,
+                              help='Save checkpoint every x epochs')
+    train_parser.add_argument('--output', help='Output directory for results')
     train_parser.add_argument(
-        "--output-dir",
-        help="Output directory for training results"
-    )
-    train_parser.add_argument(
-        "--eval-mode",
-        choices=["single", "ensemble", "compare"],
-        help="Evaluation mode when --mode=evaluate"
-    )
-    train_parser.add_argument(
-        "--additional-args",
-        help="Additional arguments in format 'key1=value1 key2=value2'"
-    )
+        '--resume', action='store_true', help='Resume training from checkpoint')
 
-    # Initialize the config
-    initialize_config()
+    # Two-stage detection command (new)
+    two_stage_parser = subparsers.add_parser(
+        'two-stage', help='Two-stage detection for powerlines and sleeves')
+    two_stage_parser.add_argument('--mode', choices=['setup', 'label-powerlines', 'augment-powerlines',
+                                                     'train-powerlines', 'detect-powerlines',
+                                                     'extract-regions', 'label-sleeves', 'augment-sleeves',
+                                                     'train-sleeves', 'run-pipeline'],
+                                  required=True, help='Operation mode')
+    two_stage_parser.add_argument(
+        '--images', help='Directory containing images to process')
+    two_stage_parser.add_argument('--output', help='Output directory')
+    two_stage_parser.add_argument('--base-dir', default='data/two_stage',
+                                  help='Base directory for two-stage detection data')
+    two_stage_parser.add_argument(
+        '--powerline-model', help='Path to trained powerline model')
+    two_stage_parser.add_argument(
+        '--sleeve-model', help='Path to trained sleeve model')
+    two_stage_parser.add_argument('--augmentations', type=int, default=5,
+                                  help='Number of augmented images to generate per original')
+    two_stage_parser.add_argument('--severity', choices=['light', 'medium', 'heavy'],
+                                  default='medium', help='Augmentation severity')
+    two_stage_parser.add_argument('--epochs', type=int, default=100,
+                                  help='Number of training epochs')
+    two_stage_parser.add_argument('--batch-size', type=int, default=16,
+                                  help='Training batch size')
+    two_stage_parser.add_argument('--model-size', choices=['n', 's', 'm', 'l', 'x'],
+                                  default='m', help='Model size (YOLOv5 size)')
+    two_stage_parser.add_argument('--conf-threshold', type=float, default=0.25,
+                                  help='Confidence threshold for detections')
+    two_stage_parser.add_argument('--padding', type=float, default=0.1,
+                                  help='Padding around powerline regions when extracting')
+    two_stage_parser.add_argument('--hyperparameter-tuning', action='store_true',
+                                  help='Perform hyperparameter tuning to find the optimal model')
 
-    # Parse the arguments
     args = parser.parse_args()
 
-    if args.command == "process":
-        process_command(args)
-    elif args.command == "plan":
-        plan_command(args)
-    elif args.command == "train":
-        train_command(args)
-    else:
+    if not args.command:
         parser.print_help()
+        return
 
-
-def train_command(args):
-    """Handle the train command."""
     try:
-        # Setup logging
-        from powerline_sleeve_detection.system.logging import setup_logging
-        setup_logging()
-        logger = logging.getLogger("train-cli")
+        config = load_config(args.config)
 
-        # Process additional arguments if provided
-        additional_params = []
-        if args.additional_args:
-            # Convert string like "key1=value1 key2=value2" to command line arguments
-            for item in args.additional_args.split():
-                if "=" in item:
-                    key, value = item.split("=", 1)
-                    additional_params.extend([f"--{key}", value])
-                else:
-                    additional_params.append(f"--{item}")
+        # Set up logging and environment
+        log_level = "DEBUG" if hasattr(
+            config.system, 'debug') and config.system.debug else "INFO"
+        log_dir = os.path.join(config.system.output_dir, "logs") if hasattr(
+            config.system, 'output_dir') else "logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "powerline_detector.log")
 
-        # Build the command to pass to train.py
-        cmd = [sys.executable, "-m", "powerline_sleeve_detection.training.train"]
+        setup_logging(log_level, log_file)
+        setup_environment(config)
 
-        # Add config argument
-        if args.config:
-            cmd.extend(["--config", args.config])
-
-        # If evaluation mode
-        if args.mode == "evaluate":
-            cmd.append("evaluate")
-
-            # Add evaluation mode
-            if args.eval_mode:
-                cmd.extend(["--mode", args.eval_mode])
-
-            # Add model path for single evaluation
-            if args.model_path:
-                cmd.extend(["--model-path", args.model_path])
-
-            # Add model paths for ensemble or comparison
-            if args.model_paths:
-                model_paths_flat = []
-                for path in args.model_paths:
-                    model_paths_flat.extend(["--model-paths", path])
-                cmd.extend(model_paths_flat)
-
-            # Add output directory
-            if args.output_dir:
-                cmd.extend(["--output-dir", args.output_dir])
-
-            # Add dataset yaml
-            if args.dataset_yaml:
-                cmd.extend(["--dataset-yaml", args.dataset_yaml])
-
-        # If training mode
+        if args.command == 'process':
+            process_command(args, config)
+        elif args.command == 'plan':
+            plan_command(args, config)
+        elif args.command == 'train':
+            train_command(args, config)
+        elif args.command == 'two-stage':
+            two_stage_command(args, config)
         else:
-            cmd.append("train")
-
-            # Add training mode
-            cmd.extend(["--mode", args.mode])
-
-            # Add data directory
-            if args.data:
-                cmd.extend(["--data", args.data])
-
-            # Add dataset yaml
-            if args.dataset_yaml:
-                cmd.extend(["--dataset-yaml", args.dataset_yaml])
-
-            # Add base model
-            if args.base_model:
-                cmd.extend(["--base-model", args.base_model])
-
-            # Add model path for auto-labeling
-            if args.model_path:
-                cmd.extend(["--model-path", args.model_path])
-
-            # Add model paths for ensemble
-            if args.model_paths:
-                model_paths_flat = []
-                for path in args.model_paths:
-                    model_paths_flat.extend(["--model-paths", path])
-                cmd.extend(model_paths_flat)
-
-            # Add output directory
-            if args.output_dir:
-                cmd.extend(["--output-dir", args.output_dir])
-
-        # Add any additional parameters
-        if additional_params:
-            cmd.extend(additional_params)
-
-        # Log the command
-        logger.info(f"Executing: {' '.join(cmd)}")
-
-        # Execute the command
-        import subprocess
-        process = subprocess.run(cmd, check=True)
-
-        # Check if the command was successful
-        if process.returncode == 0:
-            logger.info(f"Successfully completed {args.mode} operation")
-        else:
-            logger.error(
-                f"Command failed with return code {process.returncode}")
-            sys.exit(process.returncode)
+            print(f"Unknown command: {args.command}")
 
     except Exception as e:
-        logging.error(f"Error in train command: {e}")
+        print(f"Error: {e}")
         traceback.print_exc()
         sys.exit(1)
 
 
-def process_command(args):
-    """Handle the process command."""
+def process_command(args, config):
+    """Handle processing of routes and detection of sleeves."""
+    logger = logging.getLogger("process")
+
     try:
-        # Setup logging
-        setup_logging()
-        logger = logging.getLogger("process-cli")
-
-        # Load configuration
-        config = load_config(args.config if hasattr(args, "config") else "config.yaml")
-        
-        # Import csv module
-        import csv
-        import asyncio
-
-        # Initialize batch processor
-        processor = BatchProcessor(config)
-
-        # Process single route
         if args.route_id:
-            logger.info(f"Processing single route: {args.route_id}")
+            # First try to find route in sample_routes.csv if it exists and no start/end provided
+            if not args.start or not args.end:
+                csv_path = "sample_routes.csv"
+                if os.path.exists(csv_path):
+                    try:
+                        # Read the file directly line by line for maximum simplicity
+                        with open(csv_path, 'r') as f:
+                            print(
+                                f"Looking for route_id: '{args.route_id}' in {csv_path}")
+                            lines = f.readlines()
+                            header = lines[0].strip().split(',')
 
-            # Override model if specified
-            if args.model:
-                config.set("detector.model_path", args.model)
-                logger.info(f"Using custom model: {args.model}")
+                            # Find column indices
+                            id_col = header.index('route_id')
+                            start_col = header.index('start_location')
+                            end_col = header.index('end_location')
 
-            # Override output if specified
-            if args.output:
-                config.set("system.output_dir", args.output)
-                logger.info(f"Using custom output directory: {args.output}")
-                
-            # Find route details from CSV
-            csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_routes.csv")
-            start_location = None
-            end_location = None
-            
-            if not os.path.exists(csv_path):
-                logger.error(f"Routes file not found: {csv_path}")
-                sys.exit(1)
-                
-            with open(csv_path, 'r') as f:
-                csv_reader = csv.DictReader(f)
-                for row in csv_reader:
-                    if row['route_id'] == args.route_id:
-                        start_location = row['start_location']
-                        end_location = row['end_location']
-                        break
-            
-            if not start_location or not end_location:
-                logger.error(f"Route ID {args.route_id} not found in routes file")
-                sys.exit(1)
-                
-            logger.info(f"Found route: {start_location} to {end_location}")
-            
-            # Process the route using asyncio
-            result = asyncio.run(processor.process_route(args.route_id, start_location, end_location))
+                            for line in lines[1:]:  # Skip header
+                                if not line.strip():  # Skip empty lines
+                                    continue
 
-            if result and result.get("success", False):
-                logger.info(f"Successfully processed route {args.route_id}")
-                logger.info(
-                    f"Results saved to: {result.get('output_dir', 'unknown')}")
-            else:
-                logger.error(f"Failed to process route {args.route_id}")
-                if result and "error" in result:
-                    logger.error(f"Error: {result['error']}")
-                sys.exit(1)
+                                # Simple CSV parsing
+                                parts = []
+                                in_quotes = False
+                                current = ""
+                                for char in line:
+                                    if char == '"':
+                                        in_quotes = not in_quotes
+                                    elif char == ',' and not in_quotes:
+                                        parts.append(current)
+                                        current = ""
+                                    else:
+                                        current += char
+                                parts.append(current)  # Add the last part
 
-        # Process video list
-        elif args.video_list:
-            logger.info(f"Processing videos from list: {args.video_list}")
+                                route_id = parts[id_col].strip()
+                                print(f"Checking route: '{route_id}'")
 
-            # Override model if specified
-            if args.model:
-                config.set("detector.model_path", args.model)
-                logger.info(f"Using custom model: {args.model}")
+                                if route_id == args.route_id:
+                                    # Found the route
+                                    start_location = parts[start_col].strip(
+                                        '"')
+                                    end_location = parts[end_col].strip('"')
 
-            # Override output if specified
-            if args.output:
-                config.set("system.output_dir", args.output)
-                logger.info(f"Using custom output directory: {args.output}")
+                                    print(f"Found route {args.route_id}:")
+                                    print(f"  Start: {start_location}")
+                                    print(f"  End: {end_location}")
+                                    logger.info(f"Found route {args.route_id}")
+                                    logger.info(f"  Start: {start_location}")
+                                    logger.info(f"  End: {end_location}")
 
-            result = asyncio.run(processor.process_videos_from_csv(args.video_list))
+                                    # Process the route
+                                    result = asyncio.run(process_single_route(
+                                        config=config,
+                                        route_id=args.route_id,
+                                        start_location=start_location,
+                                        end_location=end_location
+                                    ))
+                                    logger.info(
+                                        f"Route processing completed with {result.get('metadata', {}).get('total_detections', 0)} detections")
+                                    return
 
-            if result and result.get("success", False):
-                logger.info("Successfully processed videos from list")
-                logger.info(
-                    f"Results saved to: {result.get('output_dir', 'unknown')}")
-            else:
-                logger.error("Failed to process videos from list")
-                if result and "error" in result:
-                    logger.error(f"Error: {result['error']}")
-                sys.exit(1)
+                            print(
+                                f"Route {args.route_id} not found in {csv_path}")
+                    except Exception as e:
+                        print(f"Error processing route from CSV: {str(e)}")
+                        logger.error(f"Error processing route from CSV: {e}")
+                        traceback.print_exc()
 
-        # Process batch from CSV
-        elif args.batch:
-            logger.info(f"Processing batch from CSV: {args.batch}")
+            # If we get here, we didn't find the route or there was an error
+            if not args.start or not args.end:
+                print(
+                    "Error: When not using CSV routes, both --start and --end are required")
+                return
 
-            # Override model if specified
-            if args.model:
-                config.set("detector.model_path", args.model)
-                logger.info(f"Using custom model: {args.model}")
-
-            # Override output if specified
-            if args.output:
-                config.set("system.output_dir", args.output)
-                logger.info(f"Using custom output directory: {args.output}")
-
-            # Process batch with optional validation subset
-            validation_subset = args.validation / \
-                100.0 if args.validation is not None else None
-
-            result = asyncio.run(processor.process_batch_from_csv(
-                args.batch,
-                parallel=args.parallel,
-                max_concurrent_tasks=args.max_tasks,
-                validation_subset=validation_subset
+            # Process with provided parameters
+            result = asyncio.run(process_single_route(
+                config=config,
+                route_id=args.route_id,
+                start_location=args.start,
+                end_location=args.end
             ))
+            logger.info(
+                f"Route processing completed with {result.get('metadata', {}).get('total_detections', 0)} detections")
 
-            if result and result.get("success", False):
-                logger.info("Successfully processed batch")
-                logger.info(
-                    f"Results saved to: {result.get('output_dir', 'unknown')}")
-                if result.get("combined_results_file"):
-                    logger.info(
-                        f"Combined results saved to: {result['combined_results_file']}")
-            else:
-                logger.error("Failed to process batch")
-                if result and "error" in result:
-                    logger.error(f"Error: {result['error']}")
-                sys.exit(1)
-
-        # No action specified
+        elif args.csv:
+            # Process batch of routes from CSV
+            asyncio.run(process_route_batch(
+                config=config,
+                csv_file=args.csv,
+                parallel=args.parallel,
+                max_concurrent=args.max_concurrent,
+                subset=args.subset
+            ))
+            logger.info("Batch processing completed")
         else:
-            logger.error(
-                "No action specified. Please specify --route-id, --video-list, or --batch")
-            sys.exit(1)
+            logger.error("Either --csv or --route-id must be specified")
+            print("Error: Either --csv or --route-id must be specified")
 
     except Exception as e:
-        logging.error(f"Error in process command: {e}")
+        logger.error(f"Error in process command: {e}")
         traceback.print_exc()
-        sys.exit(1)
 
 
-def plan_command(args):
-    """Handle the plan command."""
+def plan_command(args, config):
+    """Handle planning of routes for data acquisition."""
+    logger = logging.getLogger("plan")
+
     try:
-        # Setup logging
-        setup_logging()
-        logger = logging.getLogger("plan-cli")
-
-        # Load configuration
-        config = load_config(args.config if hasattr(args, "config") else "config.yaml")
-
-        # Import route planner module
-        from powerline_sleeve_detection.acquisition.route_planner import RoutePlanner
-        import csv
-
-        # Initialize route planner
-        planner = RoutePlanner(config)
-
-        # Plan single route
-        if args.route_id:
-            logger.info(f"Planning route: {args.route_id}")
-
-            # Override output if specified
-            if args.output:
-                config.set("system.output_dir", args.output)
-                logger.info(f"Using custom output directory: {args.output}")
-            
-            # Find route details from CSV
-            csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_routes.csv")
-            start_location = None
-            end_location = None
-            
-            if not os.path.exists(csv_path):
-                logger.error(f"Routes file not found: {csv_path}")
-                sys.exit(1)
-                
-            with open(csv_path, 'r') as f:
-                csv_reader = csv.DictReader(f)
-                for row in csv_reader:
-                    if row['route_id'] == args.route_id:
-                        start_location = row['start_location']
-                        end_location = row['end_location']
-                        break
-            
-            if not start_location or not end_location:
-                logger.error(f"Route ID {args.route_id} not found in routes file")
-                sys.exit(1)
-                
-            logger.info(f"Found route: {start_location} to {end_location}")
-            result = planner.plan_route(start_location, end_location)
-
-            if result and result.get("success", False):
-                logger.info(f"Successfully planned route {args.route_id}")
-                logger.info(
-                    f"Plan saved to: {result.get('output_file', 'unknown')}")
-            else:
-                logger.error(f"Failed to plan route {args.route_id}")
-                if result and "error" in result:
-                    logger.error(f"Error: {result['error']}")
-                sys.exit(1)
-
-        # Plan batch from CSV
-        elif args.batch:
-            logger.info(f"Planning batch from CSV: {args.batch}")
-
-            # Override output if specified
-            if args.output:
-                config.set("system.output_dir", args.output)
-                logger.info(f"Using custom output directory: {args.output}")
-
-            result = planner.plan_routes_from_csv(args.batch)
-
-            if result and result.get("success", False):
-                logger.info("Successfully planned routes")
-                logger.info(
-                    f"Plans saved to: {result.get('output_dir', 'unknown')}")
-                if result.get("summary_file"):
-                    logger.info(f"Summary saved to: {result['summary_file']}")
-            else:
-                logger.error("Failed to plan routes")
-                if result and "error" in result:
-                    logger.error(f"Error: {result['error']}")
-                sys.exit(1)
-
-        # No action specified
-        else:
-            logger.error(
-                "No action specified. Please specify --route-id or --batch")
-            sys.exit(1)
+        logger.info("Route planning not yet implemented")
+        print("Route planning functionality is not yet implemented")
 
     except Exception as e:
-        logging.error(f"Error in plan command: {e}")
+        logger.error(f"Error in plan command: {e}")
         traceback.print_exc()
-        sys.exit(1)
+
+
+def train_command(args, config):
+    """Handle training and evaluation of sleeve detection models."""
+    logger = logging.getLogger("train")
+
+    try:
+        if not args.mode:
+            logger.error("--mode argument is required for train command")
+            return
+
+        if args.mode == 'prepare':
+            # Prepare dataset
+            if not args.data:
+                logger.error("--data argument is required for prepare mode")
+                return
+
+            splits = [0.7, 0.15, 0.15]  # Default splits
+            prepare_dataset(
+                config=config,
+                raw_data_path=args.data,
+                splits=splits,
+                single_class=args.single_class
+            )
+
+        elif args.mode == 'augment':
+            # Augment dataset
+            if not args.data or not args.output:
+                logger.error(
+                    "--data and --output arguments are required for augment mode")
+                return
+
+            severity = args.augment or 'medium'
+            augment_dataset(
+                config=config,
+                dataset_path=args.data,
+                output_path=args.output,
+                multiplier=3,  # Default multiplier
+                severity=severity
+            )
+
+        elif args.mode == 'train':
+            # Train model
+            if not args.model or not args.dataset:
+                logger.error(
+                    "--model and --dataset arguments are required for train mode")
+                return
+
+            train_model(
+                config=config,
+                base_model=args.model,
+                dataset_yaml=args.dataset,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                image_size=args.img_size,
+                learning_rate=args.learning_rate
+            )
+
+        elif args.mode == 'auto-label':
+            # Auto-label images
+            if not args.model or not args.data or not args.output:
+                logger.error(
+                    "--model, --data, and --output arguments are required for auto-label mode")
+                return
+
+            auto_label_images(
+                config=config,
+                model_path=args.model,
+                images_dir=args.data,
+                output_dir=args.output,
+                confidence=args.confidence
+            )
+
+        elif args.mode == 'tune':
+            # Tune hyperparameters
+            if not args.dataset or not args.model:
+                logger.error(
+                    "--dataset and --model arguments are required for tune mode")
+                return
+
+            tune_hyperparameters(
+                config=config,
+                dataset_yaml=args.dataset,
+                base_model=args.model,
+                n_trials=20  # Default number of trials
+            )
+
+        elif args.mode == 'create-ensemble':
+            # Create ensemble
+            if not args.model:
+                logger.error(
+                    "--model argument is required for create-ensemble mode")
+                return
+
+            create_ensemble(
+                config=config,
+                model_paths=args.model,
+                output_config=args.output
+            )
+
+        else:
+            logger.error(f"Unknown training mode: {args.mode}")
+
+    except Exception as e:
+        logger.error(f"Error in train command: {e}")
+        traceback.print_exc()
+
+
+def two_stage_command(args, config):
+    """Handle two-stage detection command."""
+    logger = logging.getLogger("two-stage")
+
+    try:
+        # Initialize the two-stage detector
+        detector = TwoStageDetector(args.config)
+
+        if args.mode == 'setup':
+            # Create directory structure for two-stage detection
+            dirs = detector.prepare_directory_structure(args.base_dir)
+            logger.info(f"Created directory structure in {args.base_dir}")
+            for category, category_dirs in dirs.items():
+                if category != 'base':
+                    logger.info(f"{category.capitalize()} directories:")
+                    for name, path in category_dirs.items():
+                        logger.info(f"  - {name}: {path}")
+
+        elif args.mode == 'label-powerlines':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            # Setup environment for labeling powerlines
+            detector.setup_labeling_environment(
+                images_dir=args.images,
+                output_dir=args.output,
+                target="powerline"
+            )
+
+        elif args.mode == 'augment-powerlines':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            # Augment labeled powerline dataset
+            original_count, augmented_count = detector.augment_dataset(
+                dataset_dir=args.images,
+                output_dir=args.output,
+                num_augmentations=args.augmentations,
+                severity=args.severity
+            )
+
+            logger.info(f"Augmentation complete:")
+            logger.info(f"  - Original images: {original_count}")
+            logger.info(f"  - Augmented images: {augmented_count}")
+            logger.info(
+                f"  - Total images: {original_count + augmented_count}")
+
+        elif args.mode == 'train-powerlines':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            if args.hyperparameter_tuning:
+                logger.info(
+                    "Starting hyperparameter tuning for powerline detection model")
+            else:
+                logger.info(
+                    "Starting training for powerline detection model with fixed hyperparameters")
+
+            # Train powerline detection model
+            model_path = detector.train_model(
+                dataset_dir=args.images,
+                output_dir=args.output,
+                target="powerline",
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                model_size=args.model_size,
+                hyperparameter_tuning=args.hyperparameter_tuning
+            )
+
+            if model_path:
+                logger.info(
+                    f"Powerline model trained successfully: {model_path}")
+            else:
+                logger.error("Powerline model training failed")
+
+        elif args.mode == 'detect-powerlines':
+            if not args.images or not args.output or not args.powerline_model:
+                logger.error(
+                    "--images, --output, and --powerline-model arguments are required")
+                return
+
+            # Set the powerline model path
+            detector.powerline_model_path = args.powerline_model
+
+            # Detect powerlines in images
+            detection_dir = detector.detect_powerlines(
+                images_dir=args.images,
+                output_dir=args.output,
+                conf_threshold=args.conf_threshold
+            )
+
+            if detection_dir:
+                logger.info(f"Powerline detection complete: {detection_dir}")
+            else:
+                logger.error("Powerline detection failed")
+
+        elif args.mode == 'extract-regions':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            # Extract powerline regions for sleeve labeling
+            regions_dir = detector.extract_powerline_regions(
+                detection_dir=args.images,
+                output_dir=args.output,
+                padding=args.padding
+            )
+
+            if regions_dir:
+                logger.info(f"Powerline regions extracted: {regions_dir}")
+            else:
+                logger.error("Failed to extract powerline regions")
+
+        elif args.mode == 'label-sleeves':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            # Setup environment for labeling sleeves
+            detector.setup_labeling_environment(
+                images_dir=args.images,
+                output_dir=args.output,
+                target="sleeve"
+            )
+
+        elif args.mode == 'augment-sleeves':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            # Augment labeled sleeve dataset
+            original_count, augmented_count = detector.augment_dataset(
+                dataset_dir=args.images,
+                output_dir=args.output,
+                num_augmentations=args.augmentations,
+                severity=args.severity
+            )
+
+            logger.info(f"Augmentation complete:")
+            logger.info(f"  - Original images: {original_count}")
+            logger.info(f"  - Augmented images: {augmented_count}")
+            logger.info(
+                f"  - Total images: {original_count + augmented_count}")
+
+        elif args.mode == 'train-sleeves':
+            if not args.images or not args.output:
+                logger.error("--images and --output arguments are required")
+                return
+
+            # Train sleeve detection model
+            model_path = detector.train_model(
+                dataset_dir=args.images,
+                output_dir=args.output,
+                target="sleeve",
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                model_size=args.model_size
+            )
+
+            if model_path:
+                logger.info(f"Sleeve model trained successfully: {model_path}")
+            else:
+                logger.error("Sleeve model training failed")
+
+        elif args.mode == 'run-pipeline':
+            if not args.images or not args.output or not args.powerline_model:
+                logger.error(
+                    "--images, --output, and --powerline-model arguments are required")
+                return
+
+            # Run complete detection pipeline
+            results = detector.run_complete_pipeline(
+                raw_images_dir=args.images,
+                output_base_dir=args.output,
+                powerline_model_path=args.powerline_model,
+                sleeve_model_path=args.sleeve_model
+            )
+
+            if results:
+                logger.info(f"Detection pipeline completed successfully")
+                for key, value in results.items():
+                    logger.info(f"  - {key}: {value}")
+            else:
+                logger.error("Detection pipeline failed")
+
+        else:
+            logger.error(f"Unknown mode: {args.mode}")
+
+    except Exception as e:
+        logger.error(f"Error in two-stage detection: {e}")
+        traceback.print_exc()
 
 
 if __name__ == "__main__":

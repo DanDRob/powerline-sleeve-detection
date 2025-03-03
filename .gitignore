@@ -38,6 +38,7 @@ models/
 .cache/
 *.log
 config_local.yaml
+data/
 
 # IDE
 .idea/

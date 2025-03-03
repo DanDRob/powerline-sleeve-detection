@@ -55,3 +55,7 @@ dash-bootstrap-components==1.4.1
 googlemaps>=3.1.0
 optuna>=3.0.0
 
+# Two-stage detector dependencies
+labelImg>=1.8.6  # For manual annotation
+git+https://github.com/ultralytics/yolov5.git  # YOLOv5
+

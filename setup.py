@@ -44,7 +44,8 @@ setup(
         "python-dotenv>=1.0.1",
         "googlemaps>=3.1.0",
         "albumentations>=1.3.0",
-        "optuna>=3.0.0"
+        "optuna>=3.0.0",
+        "labelImg>=1.8.6"
     ],
     extras_require={
         "dev": [

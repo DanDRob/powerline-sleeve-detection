@@ -434,7 +434,7 @@ class TwoStageDetector:
                     target: str = "powerline",
                     epochs: int = 100,
                     batch_size: int = 16,
-                    model_size: str = "m",
+                    model_size: str = "l",
                     hyperparameter_tuning: bool = False):
         """
         Train a YOLOv5 model for the given target (powerline or sleeve).

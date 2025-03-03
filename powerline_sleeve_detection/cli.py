@@ -595,7 +595,7 @@ def main():
     two_stage_parser.add_argument('--batch-size', type=int, default=16,
                                   help='Training batch size')
     two_stage_parser.add_argument('--model-size', choices=['n', 's', 'm', 'l', 'x'],
-                                  default='m', help='Model size (YOLOv5 size)')
+                                  default='l', help='Model size (YOLOv5 size)')
     two_stage_parser.add_argument('--conf-threshold', type=float, default=0.25,
                                   help='Confidence threshold for detections')
     two_stage_parser.add_argument('--padding', type=float, default=0.1,
